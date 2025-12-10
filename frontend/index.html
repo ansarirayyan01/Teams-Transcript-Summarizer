@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Teams Meeting Summarizer</title>
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <h1>Teams Meeting Summarizer</h1>
+    <label for="inputText"
+      >Paste or type the Meeting ID below for summarization:</label
+    >
+    <textarea
+      id="inputText"
+      rows="10"
+      placeholder="Paste or type the Meeting ID here..."
+    ></textarea>
+    <button id="summarizeBtn">Generate</button>
+    <div id="loading"></div>
+    <div id="summary"></div>
+
+    <script src="main.js"></script>
+  </body>
+</html>
