@@ -92,7 +92,24 @@ function parseVTTToText(vttContent) {
 }
 
 /**
- * Main function: Get meeting transcript (no user ID needed)
+ * Parse DOCX/TXT transcript to plain text
+ */
+function parseTextTranscript(content) {
+  const lines = content.split('\n');
+  const textLines = [];
+  
+  for (const line of lines) {
+    const trimmed = line.trim();
+    if (trimmed && !trimmed.match(/^\d{2}:\d{2}:\d{2}$/)) {
+      textLines.push(trimmed);
+    }
+  }
+  
+  return textLines.join('\n');
+}
+
+/**
+ * Fetch transcript via API
  */
 export async function getMeetingTranscript(meetingId) {
   try {
@@ -117,9 +134,9 @@ export async function getMeetingTranscript(meetingId) {
 
     return {
       metadata: latestTranscript,
-      vttContent: vttContent,
       plainText: plainText,
-      transcriptId: transcriptId
+      transcriptId: transcriptId,
+      source: 'api'
     };
 
   } catch (error) {
@@ -133,6 +150,48 @@ export async function getMeetingTranscript(meetingId) {
       console.error("Unauthorized. Check your tenant ID, client ID, and client secret.");
     }
 
+    throw error;
+  }
+}
+
+/**
+ * Parse uploaded transcript file
+ */
+export function parseUploadedTranscript(fileBuffer, fileName) {
+  try {
+    console.log(`Parsing uploaded file: ${fileName}`);
+
+    const fileContent = fileBuffer.toString('utf-8');
+    const fileExtension = fileName.split('.').pop().toLowerCase();
+
+    let plainText;
+
+    switch (fileExtension) {
+      case 'vtt':
+        plainText = parseVTTToText(fileContent);
+        break;
+      
+      case 'txt':
+      case 'docx':
+        plainText = parseTextTranscript(fileContent);
+        break;
+      
+      default:
+        plainText = fileContent;
+    }
+
+    console.log(`✅ Successfully parsed transcript (${plainText.length} characters)`);
+
+    return {
+      fileName: fileName,
+      plainText: plainText,
+      characterCount: plainText.length,
+      wordCount: plainText.split(/\s+/).length,
+      source: 'upload'
+    };
+
+  } catch (error) {
+    console.error("❌ Error parsing uploaded transcript:", error.message);
     throw error;
   }
 }
