@@ -6,30 +6,52 @@ export async function summarizeWithGemini(text) {
   const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
 
   const prompt = `
-Summarize the following meeting transcript into the key points only.
+You are an expert meeting summarizer. Analyze the following Teams meeting transcript and extract only the most important information.
 
-Return the summary in this exact format:
+**Instructions:**
+- Focus on actionable content and key decisions
+- Ignore greetings, small talk, jokes, and off-topic discussions
+- Be specific with names, tasks, and deadlines
+- Only include sections that have actual content
 
-**📌 Highlights**
-- Short, crisp bullets (max 4)
+**Format your response as follows:**
+
+**📌 Key Highlights**
+- [Maximum 4 bullet points covering the main topics discussed]
+- [Focus on outcomes, not just what was talked about]
 
 **📝 Action Items**
-- {Person} → {Task} (Deadline if mentioned)
+- [Name] → [Specific task] [by deadline if mentioned]
+- [Only list items with clear ownership]
 
-**🎯 Decisions**
-- Only list confirmed decisions
+**🎯 Decisions Made**
+- [Only confirmed decisions, not proposals or discussions]
+- [Include context if the decision impacts other work]
 
 **⚠️ Risks / Blockers**
-- Mention only if explicitly discussed
+- [Only if explicitly raised as concerns]
+- [Include any mentioned mitigation plans]
 
-Keep the summary extremely concise. Remove filler talk, greetings, jokes, and unrelated chatter.
-Summarize the following meeting transcript:
+**💬 Topics Discussed**
+- [Topic]: [Brief 1-line summary]
+- [Only include if it adds value to understanding the meeting]
+
+**Transcript:**
 ${text}
+
+---
+
+**Summary:**
 `;
 
   const resp = await ai.models.generateContent({
     model: "gemini-2.5-flash",
     contents: [{ text: prompt }],
+    config: {
+      thinkingConfig: {
+        thinkingBudget: 0, // Disables thinking
+      },
+    }
   });
   return resp.text; // JSON summary string
 }

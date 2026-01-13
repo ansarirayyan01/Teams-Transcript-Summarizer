@@ -4,7 +4,7 @@ document.getElementById("summarizeBtn").onclick = async function () {
   const loadingDiv = document.getElementById("loading");
   summaryDiv.textContent = "";
   if (!input) {
-    summaryDiv.textContent = "Please enter or paste your meeting text.";
+    summaryDiv.textContent = "Please enter Meeting ID or paste your meeting text.";
     return;
   }
   loadingDiv.textContent = "Summarizing with Gemini. Please wait...";

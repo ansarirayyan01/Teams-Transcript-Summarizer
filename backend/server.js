@@ -2,6 +2,7 @@ import express from "express";
 import cors from "cors";
 // import { getMeetingTranscript } from "./graph.js";
 import { summarizeWithGemini } from "./summarizer_gemini.js";
+import { getMeetingTranscript } from "./graph.js";
 
 const app = express();
 app.use(cors());
@@ -10,7 +11,7 @@ app.use(express.json());
 // Manual transcript fetch
 app.get("/transcript/:meetingId", async (req, res) => {
   try {
-    const data = await getMeetingTranscriptingTranscript(req.params.meetingId);
+    const data = await getMeetingTranscript(req.params.meetingId);
     res.json({ success: true, data });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });
@@ -58,5 +59,16 @@ app.post("/summarize", async (req, res) => {
 //
 //   }, 10000); // check every 10 seconds
 // });
+
+// Combined endpoint: get summary by meeting ID
+app.get("/summary/:meetingId", async (req, res) => {
+  try {
+    const transcript = await getMeetingTranscript(req.params.meetingId);
+    const summary = await summarizeWithGemini(transcript);
+    res.json({ success: true, summary });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
 
 app.listen(5000, () => console.log("Backend running on port 5000"));
