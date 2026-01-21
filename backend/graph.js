@@ -1,5 +1,6 @@
 import axios from "axios";
 import dotenv from "dotenv";
+import he from "he";
 
 dotenv.config();
 
@@ -89,6 +90,52 @@ function parseVTTToText(vttContent) {
   }
 
   return textLines.join('\n');
+}
+
+/**
+ * Basic HTML -> plain text for chat messages
+ */
+function stripHtml(content) {
+  if (!content) return "";
+  // Decode common HTML entities then drop tags
+  const decoded = he.decode(content);
+  return decoded.replace(/<[^>]*>/g, "").trim();
+}
+
+/**
+ * Fetch chat/thread (thread.v2) messages
+ * Expects threadId that resolves with /chats/{id}/messages
+ */
+export async function getChatThreadMessages(threadId) {
+  const token = await getGraphToken();
+  const url = `https://graph.microsoft.com/v1.0/chats/${threadId}/messages`;
+
+  try {
+    const response = await axios.get(url, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    return response.data?.value || [];
+  } catch (error) {
+    console.error("Error fetching chat thread messages:", error.response?.data || error.message);
+    throw error;
+  }
+}
+
+/**
+ * Convert chat messages array to a single plain text blob
+ */
+export function flattenChatMessages(messages) {
+  if (!Array.isArray(messages)) return "";
+
+  return messages
+    .map((m) => {
+      const sender = m.from?.user?.displayName || "Unknown";
+      const body = stripHtml(m.body?.content || "");
+      if (!body) return null;
+      return `${sender}: ${body}`;
+    })
+    .filter(Boolean)
+    .join("\n");
 }
 
 /**

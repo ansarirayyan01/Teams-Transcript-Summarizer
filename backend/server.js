@@ -1,8 +1,13 @@
 import express from 'express';
 import multer from 'multer';
 import cors from 'cors';
-import { getMeetingTranscript, parseUploadedTranscript } from './graph.js';
-import { summarizeTranscript } from './summarizer.js';
+import {
+  getMeetingTranscript,
+  parseUploadedTranscript,
+  getChatThreadMessages,
+  flattenChatMessages,
+} from './graph.js';
+import { summarizeWithGemini } from './summarizer_gemini.js';
 
 const app = express();
 const upload = multer({ storage: multer.memoryStorage() });
@@ -27,8 +32,7 @@ app.post('/api/upload-transcript', upload.single('transcript'), async (req, res)
     const transcript = parseUploadedTranscript(req.file.buffer, req.file.originalname);
 
     // Summarize with AI
-    console.log('🤖 Generating summary...');
-    const summary = await summarizeTranscript(transcript.plainText);
+    const summary = await summarizeWithGemini(transcript.plainText);
 
     res.json({
       success: true,
@@ -63,27 +67,44 @@ app.post('/api/fetch-transcript', async (req, res) => {
 
     console.log(`🔍 Fetching transcript for meeting: ${meetingId}`);
 
-    // Fetch transcript from Microsoft Graph API
-    const transcript = await getMeetingTranscript(meetingId);
+    let plainText = null;
+    let transcriptMeta = null;
 
-    if (!transcript) {
-      return res.status(404).json({ 
-        error: 'No transcript found',
-        message: 'Make sure transcription was enabled during the meeting'
-      });
+    // Try standard online meeting transcript first
+    try {
+      const transcript = await getMeetingTranscript(meetingId);
+      if (transcript?.plainText) {
+        plainText = transcript.plainText;
+        transcriptMeta = {
+          transcriptId: transcript.transcriptId,
+          createdDate: transcript.metadata?.createdDateTime,
+          source: transcript.source || 'api',
+          type: 'transcript'
+        };
+      }
+    } catch (err) {
+      console.warn('Transcript fetch failed, will try chat thread messages.', err.message);
+    }
+
+    // Fallback: fetch chat/thread.v2 messages and flatten
+    if (!plainText) {
+      const messages = await getChatThreadMessages(meetingId);
+      if (!messages || messages.length === 0) {
+        return res.status(404).json({
+          error: 'No transcript or chat messages found',
+          message: 'Ensure transcription or meeting chat exists and the ID is correct'
+        });
+      }
+      plainText = flattenChatMessages(messages);
+      transcriptMeta = { source: 'chat', type: 'thread.v2', messageCount: messages.length };
     }
 
     // Summarize with AI
-    console.log('🤖 Generating summary...');
-    const summary = await summarizeTranscript(transcript.plainText);
+    const summary = await summarizeWithGemini(plainText);
 
     res.json({
       success: true,
-      transcript: {
-        transcriptId: transcript.transcriptId,
-        createdDate: transcript.metadata?.createdDateTime,
-        source: transcript.source
-      },
+      transcript: transcriptMeta,
       summary: summary
     });
 
